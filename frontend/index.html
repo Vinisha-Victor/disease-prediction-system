@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disease Prediction System - GA/PSO/DE</title>
+    <link rel="stylesheet" href="style.css?v=20260515-1">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏥 Disease Prediction System</h1>
+            <p>Feature Selection using GA, PSO & DE Optimization</p>
+        </header>
+
+        <!-- Status Bar -->
+        <div id="statusBar" class="status-bar">
+            <span id="statusText">📊 No dataset loaded</span>
+        </div>
+
+        <!-- Step 1: Upload Dataset -->
+        <section class="card">
+            <h2>📁 Step 1: Upload Dataset</h2>
+            <p class="info-text">Upload CSV file (Breast Cancer / Heart Disease / Diabetes)</p>
+            <form id="uploadForm">
+                <input type="file" id="datasetFile" accept=".csv" required>
+                <button type="submit" class="btn btn-primary">Upload Dataset</button>
+            </form>
+            <div id="uploadResult" class="result hidden"></div>
+        </section>
+
+        <!-- Step 2: Train Model -->
+        <section class="card">
+            <h2>🧠 Step 2: Train Model</h2>
+            <p class="info-text">Run GA, PSO, and DE optimization for feature selection</p>
+            <form id="trainForm">
+                <div class="form-group">
+                    <label for="generations">Generations:</label>
+                    <input type="number" id="generations" value="20" min="5" max="50">
+                </div>
+                <div class="form-group">
+                    <label for="population">Population:</label>
+                    <input type="number" id="population" value="20" min="10" max="50">
+                </div>
+                <button type="submit" class="btn btn-success">Start Training</button>
+            </form>
+            <div id="trainingProgress" class="progress hidden">
+                <div class="spinner"></div>
+                <span>Training in progress...</span>
+            </div>
+            <div id="trainResult" class="result hidden"></div>
+        </section>
+
+        <!-- Step 3: View Results -->
+        <section class="card">
+            <h2>📊 Training Results</h2>
+            
+            <!-- Ensemble Metrics -->
+            <div id="metricsSection" class="hidden">
+                <h3>Ensemble Performance Metrics</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Test Accuracy</div>
+                        <div class="metric-value" id="testAccuracy">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Precision</div>
+                        <div class="metric-value" id="precision">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Recall</div>
+                        <div class="metric-value" id="recall">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">F1 Score</div>
+                        <div class="metric-value" id="f1Score">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">ROC-AUC</div>
+                        <div class="metric-value" id="rocAuc">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Selected Features</div>
+                        <div class="metric-value" id="selectedFeatures">--</div>
+                    </div>
+                </div>
+
+                <!-- Individual Algorithm Metrics -->
+                <h3>Individual Algorithm Performance</h3>
+                <div class="algorithm-metrics">
+                    <div class="algo-card">
+                        <h4>🧬 Genetic Algorithm (GA)</h4>
+                        <div class="algo-stats">
+                            <p>Features Selected: <strong id="gaFeaturesCount">--</strong></p>
+                            <p>Test Accuracy: <strong id="gaAccuracy">--</strong></p>
+                            <p>Precision: <strong id="gaPrecision">--</strong></p>
+                            <p>Recall: <strong id="gaRecall">--</strong></p>
+                            <p>F1 Score: <strong id="gaF1">--</strong></p>
+                            <p>ROC-AUC: <strong id="gaRocAuc">--</strong></p>
+                            <p>Time Taken (sec): <strong id="gaTime">--</strong></p>
+                            <p>Confusion Matrix: <strong id="gaConfusionMatrix" class="mono-list">--</strong></p>
+                            <p>Selected Indexes: <strong id="gaSelectedIndexes" class="mono-list">--</strong></p>
+                            <p>Not Selected Indexes: <strong id="gaNotSelectedIndexes" class="mono-list">--</strong></p>
+                        </div>
+                    </div>
+                    <div class="algo-card">
+                        <h4>🐝 Particle Swarm (PSO)</h4>
+                        <div class="algo-stats">
+                            <p>Features Selected: <strong id="psoFeaturesCount">--</strong></p>
+                            <p>Test Accuracy: <strong id="psoAccuracy">--</strong></p>
+                            <p>Precision: <strong id="psoPrecision">--</strong></p>
+                            <p>Recall: <strong id="psoRecall">--</strong></p>
+                            <p>F1 Score: <strong id="psoF1">--</strong></p>
+                            <p>ROC-AUC: <strong id="psoRocAuc">--</strong></p>
+                            <p>Time Taken (sec): <strong id="psoTime">--</strong></p>
+                            <p>Confusion Matrix: <strong id="psoConfusionMatrix" class="mono-list">--</strong></p>
+                            <p>Selected Indexes: <strong id="psoSelectedIndexes" class="mono-list">--</strong></p>
+                            <p>Not Selected Indexes: <strong id="psoNotSelectedIndexes" class="mono-list">--</strong></p>
+                        </div>
+                    </div>
+                    <div class="algo-card">
+                        <h4>🧪 Differential Evolution (DE)</h4>
+                        <div class="algo-stats">
+                            <p>Features Selected: <strong id="deFeaturesCount">--</strong></p>
+                            <p>Test Accuracy: <strong id="deAccuracy">--</strong></p>
+                            <p>Precision: <strong id="dePrecision">--</strong></p>
+                            <p>Recall: <strong id="deRecall">--</strong></p>
+                            <p>F1 Score: <strong id="deF1">--</strong></p>
+                            <p>ROC-AUC: <strong id="deRocAuc">--</strong></p>
+                            <p>Time Taken (sec): <strong id="deTime">--</strong></p>
+                            <p>Confusion Matrix: <strong id="deConfusionMatrix" class="mono-list">--</strong></p>
+                            <p>Selected Indexes: <strong id="deSelectedIndexes" class="mono-list">--</strong></p>
+                            <p>Not Selected Indexes: <strong id="deNotSelectedIndexes" class="mono-list">--</strong></p>
+                        </div>
+                    </div>
+                    <div class="algo-card">
+                        <h4>🤝 Ensemble</h4>
+                        <div class="algo-stats">
+                            <p>Features Selected: <strong id="ensembleFeaturesCount">--</strong></p>
+                            <p>Test Accuracy: <strong id="ensembleAccuracy">--</strong></p>
+                            <p>Precision: <strong id="ensemblePrecision">--</strong></p>
+                            <p>Recall: <strong id="ensembleRecall">--</strong></p>
+                            <p>F1 Score: <strong id="ensembleF1">--</strong></p>
+                            <p>ROC-AUC: <strong id="ensembleRocAuc">--</strong></p>
+                            <p>Time Taken (sec): <strong id="ensembleTime">--</strong></p>
+                            <p>Confusion Matrix: <strong id="ensembleConfusionMatrix" class="mono-list">--</strong></p>
+                            <p>Selected Indexes: <strong id="ensembleSelectedIndexes" class="mono-list">--</strong></p>
+                            <p>Not Selected Indexes: <strong id="ensembleNotSelectedIndexes" class="mono-list">--</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Metrics Comparison Table (GA, PSO, DE, Ensemble)</h3>
+                <div id="metricsComparisonTable" class="metrics-comparison-wrapper"></div>
+
+                <!-- Feature Selection Summary -->
+                <div class="feature-summary">
+                    <h4>Feature Selection Summary</h4>
+                    <div class="feature-counts">
+                        <span>GA: <strong id="gaFeatures">--</strong></span>
+                        <span>PSO: <strong id="psoFeatures">--</strong></span>
+                        <span>DE: <strong id="deFeatures">--</strong></span>
+                        <span>Ensemble: <strong id="ensembleFeatures">--</strong></span>
+                    </div>
+                    <div id="selectedFeaturesList" class="feature-list"></div>
+                </div>
+
+                <!-- Confusion Matrix -->
+                <div class="confusion-matrix-container">
+                    <h4>Confusion Matrix (Ensemble)</h4>
+                    <div id="confusionMatrix" class="cm-grid"></div>
+                </div>
+            </div>
+
+            <!-- Convergence Charts -->
+            <div id="chartsSection" class="hidden">
+                <h3>Convergence Analysis</h3>
+                
+                <div class="chart-tabs">
+                    <button class="tab-btn active" data-chart="combined">Combined</button>
+                    <button class="tab-btn" data-chart="ga">GA</button>
+                    <button class="tab-btn" data-chart="pso">PSO</button>
+                    <button class="tab-btn" data-chart="de">DE</button>
+                </div>
+
+                <div class="chart-container chart-container-large">
+                    <canvas id="convergenceChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 4: Make Predictions -->
+        <section class="card">
+            <h2>🔮 Step 4: Make Predictions</h2>
+            <p class="info-text">Predict on new unseen data</p>
+            
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="manual">Manual Input</button>
+                <button class="tab-btn" data-tab="file">Upload File</button>
+            </div>
+
+            <!-- Manual Input Tab -->
+            <div id="manualTab" class="tab-content active">
+                <form id="predictionForm">
+                    <div id="featureInputs" class="feature-inputs">
+                        <p class="info-text">Please train the model first to see input fields</p>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="predictBtn" disabled>Predict</button>
+                </form>
+            </div>
+
+            <!-- File Upload Tab -->
+            <div id="fileTab" class="tab-content hidden">
+                <form id="batchPredictionForm">
+                    <input type="file" id="predictionFile" accept=".csv">
+                    <button type="submit" class="btn btn-primary">Predict Batch</button>
+                </form>
+                <div id="batchResults" class="result hidden"></div>
+            </div>
+
+            <!-- Prediction Result -->
+            <div id="predictionResult" class="result hidden">
+                <h3>Prediction Result</h3>
+                <div class="prediction-display">
+                    <div class="prediction-main">
+                        <div class="prediction-label">Prediction:</div>
+                        <div class="prediction-value" id="predictionValue">--</div>
+                    </div>
+                    <div class="prediction-confidence">
+                        <div class="confidence-label">Confidence:</div>
+                        <div class="confidence-value" id="confidenceValue">--</div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Individual Model Predictions -->
+                <div class="model-predictions">
+                    <h4>Individual Model Predictions</h4>
+                    <div class="model-grid">
+                        <div class="model-pred">
+                            <span>Logistic Regression:</span>
+                            <strong id="lrPred">--</strong>
+                        </div>
+                        <div class="model-pred">
+                            <span>Random Forest:</span>
+                            <strong id="rfPred">--</strong>
+                        </div>
+                        <div class="model-pred">
+                            <span>SVM:</span>
+                            <strong id="svmPred">--</strong>
+                        </div>
+                        <div class="model-pred">
+                            <span>Neural Network:</span>
+                            <strong id="nnPred">--</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Probability Chart -->
+                <div class="chart-container chart-container-medium">
+                    <canvas id="probabilityChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js?v=20260515-1"></script>
+</body>
+</html>
