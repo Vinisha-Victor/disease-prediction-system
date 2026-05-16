@@ -1,5 +1,5 @@
 // Disease Prediction System - Frontend JavaScript
-const API_URL = 'http://localhost:8000';
+const API_URL = 'http://localhost:8001';
 
 // Global state
 let currentChart = null;
@@ -834,18 +834,28 @@ function displayProbabilityChart(result) {
     canvas.chart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Voting Ensemble', 'Neural Network'],
+            labels: ['Logistic Regression', 'Random Forest', 'SVM', 'Neural Network'],
             datasets: [
                 {
                     label: 'Class 0 (Negative)',
-                    data: [result.voting_proba[0] * 100, result.nn_proba[0] * 100],
+                    data: [
+                        result.lr_proba[0] * 100, 
+                        result.rf_proba[0] * 100, 
+                        result.svm_proba[0] * 100, 
+                        result.nn_proba[0] * 100
+                    ],
                     backgroundColor: 'rgba(40, 167, 69, 0.8)',
                     borderColor: 'rgba(40, 167, 69, 1)',
                     borderWidth: 2
                 },
                 {
                     label: 'Class 1 (Positive)',
-                    data: [result.voting_proba[1] * 100, result.nn_proba[1] * 100],
+                    data: [
+                        result.lr_proba[1] * 100, 
+                        result.rf_proba[1] * 100, 
+                        result.svm_proba[1] * 100, 
+                        result.nn_proba[1] * 100
+                    ],
                     backgroundColor: 'rgba(220, 53, 69, 0.8)',
                     borderColor: 'rgba(220, 53, 69, 1)',
                     borderWidth: 2
@@ -857,11 +867,10 @@ function displayProbabilityChart(result) {
             maintainAspectRatio: false,
             devicePixelRatio: getChartPixelRatio(),
             resizeDelay: 100,
-            indexAxis: 'y',
             plugins: {
                 title: {
                     display: true,
-                    text: 'Model Probability Distribution',
+                    text: 'Individual Model Probability Distribution',
                     color: CHART_TEXT_COLOR,
                     font: { size: 24, weight: 'bold' },
                     padding: { bottom: 24 }
@@ -891,7 +900,7 @@ function displayProbabilityChart(result) {
                 }
             },
             scales: {
-                x: {
+                y: {
                     beginAtZero: true,
                     max: 100,
                     title: {
@@ -912,11 +921,13 @@ function displayProbabilityChart(result) {
                         color: CHART_GRID_COLOR
                     }
                 },
-                y: {
+                x: {
                     ticks: {
                         color: CHART_MUTED_TEXT_COLOR,
                         font: { size: 19, weight: '700' },
-                        padding: 10
+                        padding: 10,
+                        maxRotation: 0,
+                        minRotation: 0
                     },
                     grid: {
                         display: false

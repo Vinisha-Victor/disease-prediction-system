@@ -253,6 +253,16 @@ def load_models():
         load_saved_models()
         training_status["is_trained"] = True
         
+        # Also restore training results if available
+        from model_utils import TRAINING_RESULTS
+        if TRAINING_RESULTS:
+            training_status["metrics"] = TRAINING_RESULTS.get("metrics", {})
+            training_status["selected_features"] = TRAINING_RESULTS.get("selected_features", [])
+            training_status["convergence"] = TRAINING_RESULTS.get("convergence", {})
+            training_status["ga_metrics"] = TRAINING_RESULTS.get("ga_metrics", {})
+            training_status["pso_metrics"] = TRAINING_RESULTS.get("pso_metrics", {})
+            training_status["de_metrics"] = TRAINING_RESULTS.get("de_metrics", {})
+        
         return {
             "success": True,
             "message": "Models loaded successfully"

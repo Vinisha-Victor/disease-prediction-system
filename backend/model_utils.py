@@ -31,6 +31,8 @@ X_test = None
 y_test = None
 DATASET_NAME = None
 TARGET = None
+TRAINING_RESULTS = None
+FITNESS_CACHE = {}
 
 
 # ============================================
@@ -54,7 +56,7 @@ def stability_score(cur_mask, prev_best_mask):
     return (inter / union) if union > 0 else 0.0
 
 
-def incremental_eval(selected_idx, model_cls=LogisticRegression, phases=3):
+def incremental_eval(selected_idx, model_cls=LogisticRegression, phases=1):
     """Incremental evaluation across multiple phases"""
     global X_train, y_train, X_val, y_val
     
@@ -70,7 +72,7 @@ def incremental_eval(selected_idx, model_cls=LogisticRegression, phases=3):
         if upto < 2:
             upto = min(2, n)
         
-        clf = model_cls(max_iter=1000)
+        clf = model_cls(max_iter=500)
         clf.fit(Xsel[:upto], y_train[:upto])
         preds = clf.predict(X_val[:, selected_idx])
         accs.append(accuracy_score(y_val, preds))
@@ -88,11 +90,18 @@ def fitness_function(mask, gen, total_gens, prev_best_mask=None, alpha=0.02, bet
         return -999.0
 
     selected_idx = np.where(mask == 1)[0]
+    cache_key = tuple(selected_idx.tolist())
     
     try:
-        acc = incremental_eval(selected_idx, model_cls=LogisticRegression, phases=3)
+        if cache_key not in FITNESS_CACHE:
+            FITNESS_CACHE[cache_key] = incremental_eval(
+                selected_idx,
+                model_cls=LogisticRegression,
+                phases=1
+            )
+        acc = FITNESS_CACHE[cache_key]
     except Exception as e:
-        clf = LogisticRegression(max_iter=1000)
+        clf = LogisticRegression(max_iter=500)
         clf.fit(X_train[:, selected_idx], y_train)
         acc = accuracy_score(y_val, clf.predict(X_val[:, selected_idx]))
 
@@ -254,6 +263,10 @@ def preprocess_dataset(df, filename):
     global SCALER, FEATURE_NAMES, X_train, y_train, X_val, y_val, X_test, y_test
     global DATASET_NAME, TARGET
     
+    # Drop CSV artifacts and identifier columns that do not help prediction.
+    df = df.drop(columns=[col for col in df.columns if str(col).startswith("Unnamed")], errors="ignore")
+    df = df.drop(columns=["id"], errors="ignore")
+
     # Auto-detect dataset and target column
     if "diagnosis" in df.columns:
         DATASET_NAME = "Breast Cancer"
@@ -394,7 +407,9 @@ def evaluate_mask_metrics(mask, mask_name="Mask", optimization_time_sec=None):
 def train_models(gens=20, pop=20):
     """Run optimization and train ensemble models"""
     global ENSEMBLE_MASK, MODELS, X_train, y_train, X_val, y_val, X_test, y_test
+    global FITNESS_CACHE
     
+    FITNESS_CACHE = {}
     training_start = time.time()
 
     # Run optimizers
@@ -428,17 +443,17 @@ def train_models(gens=20, pop=20):
         raise RuntimeError("Ensemble mask selected zero features")
     
     # Train individual models
-    lr_model = LogisticRegression(max_iter=5000, random_state=42)
-    rf_model = RandomForestClassifier(n_estimators=200, n_jobs=-1, random_state=42)
+    lr_model = LogisticRegression(max_iter=2000, random_state=42)
+    rf_model = RandomForestClassifier(n_estimators=100, n_jobs=1, random_state=42)
     svm_model = SVC(probability=True, kernel='rbf', gamma='scale', random_state=42)
     nn_model = MLPClassifier(hidden_layer_sizes=(64, 32), activation='relu', 
-                            max_iter=2000, random_state=42)
+                            max_iter=800, random_state=42)
     
     # Train voting ensemble
     voting = VotingClassifier(
         estimators=[('lr', lr_model), ('rf', rf_model), ('svc', svm_model)],
         voting='soft',
-        n_jobs=-1
+        n_jobs=1
     )
     voting.fit(X_train[:, sel_idx], y_train)
     
@@ -486,7 +501,7 @@ def train_models(gens=20, pop=20):
 
     ensemble_metrics['time_taken_sec'] = round(time.time() - training_start, 4)
     
-    return {
+    results = {
         'metrics': ensemble_metrics,
         'ga_metrics': ga_metrics,
         'pso_metrics': pso_metrics,
@@ -498,6 +513,12 @@ def train_models(gens=20, pop=20):
         },
         'selected_features': get_selected_features()
     }
+    
+    # Store results in global variable for later retrieval
+    global TRAINING_RESULTS
+    TRAINING_RESULTS = results
+    
+    return results
 
 
 def get_selected_features():
@@ -550,6 +571,15 @@ def make_prediction(input_data):
     voting_pred = MODELS['voting'].predict(X_selected)
     voting_proba = MODELS['voting'].predict_proba(X_selected)
     
+    lr_pred = MODELS['lr'].predict(X_selected)
+    lr_proba = MODELS['lr'].predict_proba(X_selected)
+    
+    rf_pred = MODELS['rf'].predict(X_selected)
+    rf_proba = MODELS['rf'].predict_proba(X_selected)
+    
+    svm_pred = MODELS['svm'].predict(X_selected)
+    svm_proba = MODELS['svm'].predict_proba(X_selected)
+    
     nn_pred = MODELS['nn'].predict(X_selected)
     nn_proba = MODELS['nn'].predict_proba(X_selected)
     
@@ -560,10 +590,13 @@ def make_prediction(input_data):
         'voting_proba': voting_proba[0].tolist(),
         'nn_prediction': int(nn_pred[0]),
         'nn_proba': nn_proba[0].tolist(),
+        'lr_proba': lr_proba[0].tolist(),
+        'rf_proba': rf_proba[0].tolist(),
+        'svm_proba': svm_proba[0].tolist(),
         'individual_predictions': {
-            'lr': int(MODELS['lr'].predict(X_selected)[0]),
-            'rf': int(MODELS['rf'].predict(X_selected)[0]),
-            'svm': int(MODELS['svm'].predict(X_selected)[0]),
+            'lr': int(lr_pred[0]),
+            'rf': int(rf_pred[0]),
+            'svm': int(svm_pred[0]),
             'nn': int(nn_pred[0])
         }
     }
@@ -572,8 +605,8 @@ def make_prediction(input_data):
 
 
 def save_models():
-    """Save trained models to disk"""
-    global MODELS, SCALER, ENSEMBLE_MASK
+    """Save trained models and training results to disk"""
+    global MODELS, SCALER, ENSEMBLE_MASK, TRAINING_RESULTS
     
     import joblib
     
@@ -584,13 +617,18 @@ def save_models():
     joblib.dump(MODELS['svm'], 'models/svm.pkl')
     joblib.dump(MODELS['nn'], 'models/nn.pkl')
     joblib.dump(MODELS['voting'], 'models/voting.pkl')
+    
+    # Save training results if available
+    if TRAINING_RESULTS:
+        joblib.dump(TRAINING_RESULTS, 'training_results.pkl')
 
 
 def load_saved_models():
-    """Load models from disk"""
-    global MODELS, SCALER, ENSEMBLE_MASK
+    """Load models and training results from disk"""
+    global MODELS, SCALER, ENSEMBLE_MASK, TRAINING_RESULTS
     
     import joblib
+    import os
     
     SCALER = joblib.load('scaler.pkl')
     ENSEMBLE_MASK = joblib.load('ensemble_mask.pkl')
@@ -603,3 +641,7 @@ def load_saved_models():
         'voting': joblib.load('models/voting.pkl'),
         'ensemble_mask': ENSEMBLE_MASK
     }
+    
+    # Load training results if available
+    if os.path.exists('training_results.pkl'):
+        TRAINING_RESULTS = joblib.load('training_results.pkl')
